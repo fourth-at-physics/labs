@@ -1,0 +1,57 @@
+name: Build LaTeX labs (matrix)
+
+on:
+  push:
+    paths:
+      - 'labs/**/*.tex'
+  pull_request:
+    paths:
+      - 'labs/**/*.tex'
+
+jobs:
+  discover-labs:
+    runs-on: ubuntu-latest
+    outputs:
+      labs: ${{ steps.set-matrix.outputs.labs }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Find lab directories
+        id: set-matrix
+        run: |
+          # Ищем папки labs/lab*
+          labs=$(find labs -maxdepth 1 -type d -name 'lab*' -printf '%f\n' | jq -R -s -c 'split("\n")[:-1]')
+          echo "Found labs: $labs"
+          echo "labs=$labs" >> $GITHUB_OUTPUT
+
+  build-labs:
+    needs: discover-labs
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        lab: ${{ fromJson(needs.discover-labs.outputs.labs) }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install LaTeX
+        run: sudo apt-get update && sudo apt-get install -y texlive-latex-extra latexmk
+
+      - name: Compile LaTeX for ${{ matrix.lab }}
+        run: |
+          texfile=$(find "labs/${{ matrix.lab }}" -maxdepth 1 -name '*.tex' | head -n 1)
+          if [ -n "$texfile" ]; then
+            echo "Compiling $texfile"
+            latexmk -pdf -interaction=nonstopmode -shell-escape "$texfile"
+          else
+            echo "No .tex file found in labs/${{ matrix.lab }}"
+            exit 1
+          fi
+
+      - name: Upload PDF for ${{ matrix.lab }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.lab }}
+          path: labs/${{ matrix.lab }}/*.pdf
