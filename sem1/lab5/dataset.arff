@@ -1,0 +1,9 @@
+% 1. Title: Lab 5 dataset
+% 
+% 
+@RELATION lab5
+
+@ATTRIBUTE r_distance  NUMERIC
+@ATTRIBUTE period   NUMERIC
+
+@DATA
